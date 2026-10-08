@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Environment variables (API keys!)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Data files (we'll generate these)
+data/
+*.csv
+*.parquet
+
+# Logs
+logs/
+*.log
+
+# Jupyter (if we use it)
+.ipynb_checkpoints/
+
+# OS
+Thumbs.db
