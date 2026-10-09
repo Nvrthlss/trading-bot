@@ -22,7 +22,7 @@ env/
 .DS_Store
 
 # Data files (we'll generate these)
-data/
+/data/
 *.csv
 *.parquet
 
