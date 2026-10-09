@@ -11,18 +11,38 @@ class BinanceClient:
         self.session = requests.Session()
 
     def get_klines(self, symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
-        url = self.base_url + "/api/v3/klines"
-        params = {
-            "symbol": symbol,
-            "interval": interval,
-            "limit": limit,
-        }
+        all_data = []
+        remaining = limit
+        end_time = None
 
-        response = self.session.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        while remaining > 0:
+            batch_size = min(remaining, 1000)
+
+            params = {
+                "symbol": symbol,
+                "interval": interval,
+                "limit": batch_size,
+            }
+            if end_time is not None:
+                params["endTime"] = end_time
         
-        df = pd.DataFrame(data, columns=[
+            url = self.base_url + "/api/v3/klines"
+            response = self.session.get(url, params=params)
+            response.raise_for_status()
+            batch = response.json()
+
+            if not batch:
+                break
+
+            all_data = batch + all_data
+            remaining -= len(batch)
+
+            if len(batch) < batch_size:
+                break
+
+            end_time = batch[0][0] - 1
+        
+        df = pd.DataFrame(all_data, columns=[
             "timestamp", "open", "high", "low", "close", "volume",
             "close_time", "quote_volume", "trades",
             "taker_buy_base", "taker_buy_quote", "ignore"
@@ -32,9 +52,7 @@ class BinanceClient:
             df[col] = df[col].astype(float)
 
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-
         df.set_index("timestamp", inplace=True)
-
         df = df[["open", "high", "low", "close", "volume"]]
 
         return df
