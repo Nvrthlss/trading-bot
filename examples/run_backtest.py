@@ -13,6 +13,8 @@ engine = BacktestEngine(
     initial_balance=10_000.0,
     trade_size_pct=5.0,
     fee_rate=0.001,
+    stop_loss_pct=2.0,
+    take_profit_pct=4.0,
 )
 
 result = engine.run(df, strategy)
@@ -32,6 +34,10 @@ print(f"Total trades:        {result.num_trades}")
 print(f"Wins / Losses:       {result.num_wins} / {result.num_losses}")
 print(f"Win rate:            {result.win_rate:.1f}%")
 print(f"Total fees paid:     ${result.total_fees:,.2f}")
+print()
+print(f"Exit reasons:")
+for reason, count in result.exit_reasons.items():
+    print(f"  {reason}: {count}")
 print()
 print("Last 5 trades:")
 for t in result.trades[-5:]:
