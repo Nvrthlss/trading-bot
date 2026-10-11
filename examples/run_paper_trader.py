@@ -9,7 +9,7 @@ strategy = SMACrossoverStrategy(short_window=20, long_window=50)
 trader = PaperTrader(
     client=client,
     strategy=strategy,
-    symbol="BTCUSDT",
+    symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"],
     interval="1h",
     candles_to_fetch=500,
     initial_balance=10_000.0,
@@ -17,6 +17,7 @@ trader = PaperTrader(
     fee_rate=0.001,
     stop_loss_pct=2.0,
     take_profit_pct=4.0,
+    max_total_exposure_pct=60.0,
     scan_interval_seconds=60,
 )
 

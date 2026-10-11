@@ -25,18 +25,28 @@ class PaperState:
     total_fees_paid: float = 0.0
     cycle_count: int = 0
     started_at: Optional[str] = None
-    open_position: Optional[OpenPosition] = None
+    open_positions: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        d = asdict(self)
+        d = {
+            "balance": self.balance,
+            "initial_balance": self.initial_balance,
+            "total_fees_paid": self.total_fees_paid,
+            "cycle_count": self.cycle_count,
+            "started_at": self.started_at,
+            "open_positions": {
+                sym: asdict(pos) for sym, pos in self.open_positions.items()
+            },
+        }
         return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "PaperState":
-        pos_data = d.pop("open_position", None)
+        positions_data = d.pop("open_position", {})
         state = cls(**d)
-        if pos_data is not None:
-            state.open_position = OpenPosition(**pos_data)
+        state.open_position = {
+            sym: OpenPosition(**pos_dict) for sym, pos_dict in positions_data.items()
+        }
         return state
 
 class StateStore:
