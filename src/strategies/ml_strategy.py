@@ -64,6 +64,13 @@ class MLStrategy:
 
         return df
 
+    def prepare_live(self, df: pd.DataFrame) -> pd.DataFrame:
+        if not self.model.is_trained:
+            raise RuntimeError("prepare_live called before model was trained. Call prepare() first.")
+        df = add_features(df)
+        self._signals_cache = self._precompute_signals(df)
+        return df
+
     def _precompute_signals(self, df: pd.DataFrame) -> np.ndarray:
         signals = np.full(len(df), HOLD, dtype=int)
 

@@ -24,7 +24,7 @@ class PaperTrader:
     def __init__(
         self,
         client: BinanceClient,
-        strategy,
+        strategy_factory,
         symbols: List[str],
         interval: str,
         candles_to_fetch: int = 500,
@@ -40,7 +40,15 @@ class PaperTrader:
     ):
         self.client = client
         self.cache = DataCache(client)
-        self.strategy = strategy
+        self.strategy_factory = strategy_factory
+        self.strategies: dict = {}
+        print(f"[INIT] Preparing strategies for {len(symbols)} symbols")
+        for sym in symbols:
+            strat = strategy_factory(sym)
+            df_prep = self.cache.get_klines(sym, interval, candles_to_fetch)
+            strat.prepare(df_prep)
+            self.strategies[sym] = strat
+            print(f"   [READY] {sym}")
         self.symbols = symbols
         self.interval = interval
         self.candles_to_fetch = candles_to_fetch
@@ -124,10 +132,11 @@ class PaperTrader:
         for sym in self.symbols:
             try:
                 df = self.cache.get_klines(sym, self.interval, self.candles_to_fetch)
-                df = self.strategy.prepare(df)
+                strat = self.strategies[sym]
+                df = strat.prepare_live(df) if hasattr(strat, "prepare_live") else strat.prepare(df)
                 i = len(df) - 1
                 prices[sym] = df["close"].iloc[i]
-                signals[sym] = self.strategy.signal(df, i)
+                signals[sym] = strat.signal(df, i)
             except Exception as e:
                 print(f"  [ERROR] fetch failed for {sym}: {e}")
 
