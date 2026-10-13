@@ -22,7 +22,7 @@ class TradingModel:
             min_samples_leaf=min_samples_leaf,
             random_state=random_state,
             class_weight="balanced",
-            n_jobs=-1,
+            n_jobs=1,
         )
         self.feature_names: list = []
         self.is_trained: bool = False
