@@ -1,0 +1,100 @@
+from src.exchanges.binance_client import BinanceClient
+from src.data.cache import DataCache
+from src.strategies.ml_strategy import MLStrategy
+from src.backtest.engine import BacktestEngine
+from src.backtest.advanced import walk_forward, monte_carlo
+
+
+client = BinanceClient()
+cache = DataCache(client)
+
+df = cache.get_klines("BTCUSDT", "15m", 3000)
+print(f"Dataset: {len(df)} candles")
+
+def make_strategy():
+    return MLStrategy(
+        forward_periods=8,
+        threshold_pct=1.0,
+        train_ratio=0.7,
+        min_confidence=0.5,
+        n_estimators=200,
+        max_depth=10,
+        min_samples_leaf=20,
+    )
+
+engine = BacktestEngine(
+    initial_balance=10_000.0,
+    trade_size_pct=5.0,
+    fee_rate=0.001,
+    stop_loss_pct=2.0,
+    take_profit_pct=4.0,
+)
+
+print("\nRunning walk-forward optimization...")
+print("-" * 60)
+result = walk_forward(
+    df=df,
+    strategy_factory=make_strategy,
+    engine=engine,
+    train_size=1000,
+    test_size=250,
+    step=250,
+)
+
+print("-" * 60)
+print(f"\nWALK-FORWARD SUMMARY")
+print(f"=" * 60)
+print(f"Windows tested:    {len(result.windows)}")
+print(f"Avg return:        {result.avg_return:+.2f}% per window")
+print(f"Avg win rate:      {result.avg_win_rate:.1f}%")
+print(f"Consistency:       {result.consistency:.0f}% of windows were profitable")
+print(f"Total trades:      {result.total_trades}")
+
+if result.consistency >= 70:
+    print(f"\nVerdict: ROBUST — profitable across most market regimes")
+elif result.consistency >= 50:
+    print(f"\nVerdict: MIXED — works sometimes, needs more validation")
+else:
+    print(f"\nVerdict: WEAK — probably not generalizable")
+
+
+
+
+print("\n" + "=" * 60)
+print("MONTE CARLO SIMULATION")
+print("=" * 60)
+print("Running single backtest for MC baseline...")
+
+strategy = make_strategy()
+single_result = engine.run(df, strategy)
+
+print(f"Base backtest: {single_result.num_trades} trades, "
+      f"return={single_result.total_return_pct:+.2f}%")
+
+if single_result.num_trades == 0:
+    print("No trades in base backtest, skipping Monte Carlo.")
+else:
+    print(f"Running Monte Carlo (500 simulations)...")
+    mc = monte_carlo(single_result, n_simulations=500)
+
+    print(f"\nMonte Carlo Results:")
+    print(f"  Final balance:              ${mc['final_balance']:,.2f}  (same for all orderings)")
+    print(f"  Total return:               {mc['total_return_pct']:+.2f}%")
+    print()
+    print(f"  Drawdown statistics across {mc['n_simulations']} random orderings:")
+    print(f"    Mean max drawdown:        {mc['mean_max_drawdown']:.2f}%")
+    print(f"    Median max drawdown:      {mc['median_max_drawdown']:.2f}%")
+    print(f"    Best case (lowest DD):    {mc['best_max_drawdown']:.2f}%")
+    print(f"    Worst case (highest DD):  {mc['worst_max_drawdown']:.2f}%")
+    print(f"    95th percentile:          {mc['percentile_95_drawdown']:.2f}%")
+    print()
+    print(f"  Robustness:")
+    print(f"    DD stayed under 5%:       {mc['pct_under_5pct_dd']:.1f}% of orderings")
+    print(f"    DD stayed under 10%:      {mc['pct_under_10pct_dd']:.1f}% of orderings")
+
+    if mc['pct_under_10pct_dd'] >= 95 and mc['total_return_pct'] > 0:
+        print(f"\nVerdict: STATISTICALLY SOUND — profitable with manageable drawdown")
+    elif mc['total_return_pct'] > 0:
+        print(f"\nVerdict: PROFITABLE but RISKY — drawdown can exceed 10% in some orderings")
+    else:
+        print(f"\nVerdict: UNPROFITABLE — losing strategy regardless of ordering")
