@@ -64,6 +64,86 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+def _compute_tf_features(df: pd.DataFrame, tf_suffix: str, feature_set: str) -> pd.DataFrame:
+    out = pd.DataFrame(index=df.index)
+
+    rsi_14 = rsi(df, 14)
+    out[f"rsi_14{tf_suffix}"] = rsi_14
+    out[f"return_1{tf_suffix}"] = df["close"].pct_change(1) * 100
+
+    if feature_set in ("medium", "full"):
+        sma_20 = sma(df, 20)
+        out[f"price_vs_sma20{tf_suffix}"] = df["close"] / sma_20 - 1
+
+    if feature_set == "full":
+        sma_50 = sma(df, 50)
+        out[f"sma20_vs_sma50{tf_suffix}"] = sma_20 / sma_50 - 1
+
+    return out
+
+def add_multi_tf_features(df_trade: pd.DataFrame, multi_tf_dfs: dict) -> pd.DataFrame:
+    df_trade = df_trade.copy()
+
+    tf_config = {
+        "5m": ("minimal", "_5m"),
+        "15m": ("medium", "_15m"),
+        "1h": ("full", "_1h"),
+        "4h": ("full", "_4h"),
+        "1d": ("full", "_1d")
+    }
+
+    df_trade = df_trade.sort_index()
+    # Thanks pandas, for giving me some debugging to do.
+    # From now on, I'll remember that you don't know how many microseconds is a millisecond
+    df_trade["_trade_ts"] = pd.to_datetime(df_trade.index).astype("datetime64[ns]")
+
+    for tf, df_tf in multi_tf_dfs.items():
+        if tf not in tf_config:
+            continue
+        feature_set, suffix = tf_config[tf]
+
+        tf_features = _compute_tf_features(df_tf, suffix, feature_set)
+        tf_features = tf_features.sort_index()
+        tf_features["_tf_ts"] = pd.to_datetime(tf_features.index).astype("datetime64[ns]")
+
+        merged = pd.merge_asof(
+            df_trade[["_trade_ts"]],
+            tf_features,
+            left_on="_trade_ts",
+            right_on="_tf_ts",
+            direction="backward",
+        )
+        merged.index = df_trade.index
+
+        for col in tf_features.columns:
+            if col == "_tf_ts":
+                continue
+            df_trade[col] = merged[col].values
+
+    df_trade = df_trade.drop(columns=["_trade_ts"])
+    return df_trade
+
+def multi_tf_feature_columns(intervals: list) -> list:
+    tf_config = {
+        "5m": ("minimal", "_5m"),
+        "15m": ("medium", "_15m"),
+        "1h": ("full", "_1h"),
+        "4h": ("full", "_4h"),
+        "1d": ("full", "_1d"),
+    }
+
+    columns = []
+    for tf in intervals:
+        if tf not in tf_config:
+            continue
+        feature_set, suffix = tf_config[tf]
+        columns.append(f"rsi_14{suffix}")
+        columns.append(f"return_1{suffix}")
+        if feature_set in ("medium", "full"):
+            columns.append(f"price_vs_sma20{suffix}")
+        if feature_set == "full":
+            columns.append(f"sma20_vs_sma50{suffix}")
+    return columns
 
 FEATURE_COLUMNS = [
     "price_vs_sma20", "price_vs_sma50", "price_vs_ema20", "sma20_vs_sma50",

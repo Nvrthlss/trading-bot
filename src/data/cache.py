@@ -85,4 +85,8 @@ class DataCache:
         self._save_to_disk(df, symbol, interval)
         return df
 
-    
+    def get_multi_tf_klines(self, symbol: str, intervals: list, limit: int = 3000) -> dict:
+        result = {}
+        for interval in intervals:
+            result[interval] = self.get_klines(symbol, interval, limit=limit)
+        return result

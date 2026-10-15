@@ -8,26 +8,44 @@ from src.backtest.advanced import walk_forward, monte_carlo
 client = BinanceClient()
 cache = DataCache(client)
 
-df = cache.get_klines("BTCUSDT", "15m", 3000)
-print(f"Dataset: {len(df)} candles")
+TRADE_TF = "15m"
+EXTRA_TFS = ["1h", "4h", "1d"]      # 5m deleted temporarily
+
+print(f"Trade TF: {TRADE_TF}, Extra feature TFs: {EXTRA_TFS}")
+print("Downloading data for all timeframes...")
+
+df = cache.get_klines("BTCUSDT", TRADE_TF, 5000)
+print(f"Trade TF dataset: {len(df)} candles")
+
+multi_tf_data = cache.get_multi_tf_klines("BTCUSDT", EXTRA_TFS, limit=3000)
+
+# In case of using 5m TF, as 5m has less history coverage per bar count
+# multi_tf_data = {}
+# for tf in EXTRA_TFS:
+#     limit = 15000 if tf == "5m" else 3000
+#     multi_tf_data[tf] = cache.get_klines("BTCUSDT", tf, limit)
 
 def make_strategy():
-    return MLStrategy(
-        forward_periods=8,
-        threshold_pct=1.0,
+    strat = MLStrategy(
+        forward_periods=16,
+        threshold_pct=0.5,
         train_ratio=0.7,
         min_confidence=0.5,
         n_estimators=200,
         max_depth=10,
         min_samples_leaf=20,
+        extra_tfs=EXTRA_TFS,
     )
+    strat.set_extra_tf_data(multi_tf_data)
+    return strat
+
 
 engine = BacktestEngine(
     initial_balance=10_000.0,
     trade_size_pct=5.0,
     fee_rate=0.001,
-    stop_loss_pct=2.0,
-    take_profit_pct=4.0,
+    stop_loss_pct=1.5,
+    take_profit_pct=3.0,
 )
 
 print("\nRunning walk-forward optimization...")
@@ -36,9 +54,9 @@ result = walk_forward(
     df=df,
     strategy_factory=make_strategy,
     engine=engine,
-    train_size=1000,
-    test_size=250,
-    step=250,
+    train_size=2500,
+    test_size=1000,
+    step=1000,
 )
 
 print("-" * 60)
@@ -56,9 +74,6 @@ elif result.consistency >= 50:
     print(f"\nVerdict: MIXED — works sometimes, needs more validation")
 else:
     print(f"\nVerdict: WEAK — probably not generalizable")
-
-
-
 
 print("\n" + "=" * 60)
 print("MONTE CARLO SIMULATION")
