@@ -9,21 +9,27 @@ client = BinanceClient()
 cache = DataCache(client)
 
 TRADE_TF = "15m"
-EXTRA_TFS = ["1h", "4h", "1d"]      # 5m deleted temporarily
+EXTRA_TFS = ["5m", "1h", "4h", "1d"]      # 5m deleted temporarily
 
 print(f"Trade TF: {TRADE_TF}, Extra feature TFs: {EXTRA_TFS}")
 print("Downloading data for all timeframes...")
 
-df = cache.get_klines("BTCUSDT", TRADE_TF, 5000)
-print(f"Trade TF dataset: {len(df)} candles")
+df = cache.get_klines("BTCUSDT", TRADE_TF, 20000)
+print(f"Trade TF dataset: {len(df)} candles ({(df.index[-1] - df.index[0]).days} days)")
 
-multi_tf_data = cache.get_multi_tf_klines("BTCUSDT", EXTRA_TFS, limit=3000)
+# Per-TF limits — matched to cover 208 days (20000 15m bars)
+TF_LIMITS = {
+    "5m": 60000,
+    "15m": 20000,
+    "1h": 5000,
+    "4h": 1500,
+    "1d": 300,
+}
 
-# In case of using 5m TF, as 5m has less history coverage per bar count
-# multi_tf_data = {}
-# for tf in EXTRA_TFS:
-#     limit = 15000 if tf == "5m" else 3000
-#     multi_tf_data[tf] = cache.get_klines("BTCUSDT", tf, limit)
+multi_tf_data = {}
+for tf in EXTRA_TFS:
+    limit = TF_LIMITS.get(tf, 3000)
+    multi_tf_data[tf] = cache.get_klines("BTCUSDT", tf, limit)
 
 def make_strategy():
     strat = MLStrategy(
@@ -54,9 +60,9 @@ result = walk_forward(
     df=df,
     strategy_factory=make_strategy,
     engine=engine,
-    train_size=2500,
-    test_size=1000,
-    step=1000,
+    train_size=5000,
+    test_size=2000,
+    step=2000,
 )
 
 print("-" * 60)
@@ -93,23 +99,14 @@ else:
     mc = monte_carlo(single_result, n_simulations=500)
 
     print(f"\nMonte Carlo Results:")
-    print(f"  Final balance:              ${mc['final_balance']:,.2f}  (same for all orderings)")
+    print(f"  Final balance:              ${mc['final_balance']:,.2f}")
     print(f"  Total return:               {mc['total_return_pct']:+.2f}%")
     print()
     print(f"  Drawdown statistics across {mc['n_simulations']} random orderings:")
     print(f"    Mean max drawdown:        {mc['mean_max_drawdown']:.2f}%")
-    print(f"    Median max drawdown:      {mc['median_max_drawdown']:.2f}%")
-    print(f"    Best case (lowest DD):    {mc['best_max_drawdown']:.2f}%")
     print(f"    Worst case (highest DD):  {mc['worst_max_drawdown']:.2f}%")
     print(f"    95th percentile:          {mc['percentile_95_drawdown']:.2f}%")
     print()
     print(f"  Robustness:")
     print(f"    DD stayed under 5%:       {mc['pct_under_5pct_dd']:.1f}% of orderings")
     print(f"    DD stayed under 10%:      {mc['pct_under_10pct_dd']:.1f}% of orderings")
-
-    if mc['pct_under_10pct_dd'] >= 95 and mc['total_return_pct'] > 0:
-        print(f"\nVerdict: STATISTICALLY SOUND — profitable with manageable drawdown")
-    elif mc['total_return_pct'] > 0:
-        print(f"\nVerdict: PROFITABLE but RISKY — drawdown can exceed 10% in some orderings")
-    else:
-        print(f"\nVerdict: UNPROFITABLE — losing strategy regardless of ordering")
