@@ -9,7 +9,7 @@ client = BinanceClient()
 cache = DataCache(client)
 
 TRADE_TF = "15m"
-EXTRA_TFS = ["5m", "1h", "4h", "1d"]      # 5m deleted temporarily
+EXTRA_TFS = ["1h", "4h", "1d"]      # 5m deleted temporarily
 
 print(f"Trade TF: {TRADE_TF}, Extra feature TFs: {EXTRA_TFS}")
 print("Downloading data for all timeframes...")
