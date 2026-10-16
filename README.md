@@ -76,6 +76,7 @@ python -m examples.run_paper_trader
 
 ## Project structure
 
+```
 src/
 ├── exchanges/binance_client.py # Paginated Binance REST client
 ├── data/cache.py # CSV-based OHLCV cache
@@ -96,7 +97,7 @@ src/
 └── paper_trading/
 ├── state.py # Persistent state + trade log
 └── trader.py # Live paper trader loop
-
+```
 
 ## Status
 
