@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.exchanges.binance_client import BinanceClient
+from src.exchanges.base import ExchangeClient
 
 class DataCache:
     """
@@ -14,14 +15,14 @@ class DataCache:
     Wraps a BinanceClient and only hits the AI when the cache is missing or stale.
     """
 
-    def __init__(self, client: BinanceClient, cache_dir: str = "data"):
+    def __init__(self, client: ExchangeClient, cache_dir: str = "data"):
         self.client = client
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
 
     def _cache_path(self, symbol: str, interval: str) -> Path:
         """Return the cache file path for a given symbol/interval combination."""
-        return self.cache_dir / f"{symbol}_{interval}.csv"
+        return self.cache_dir / f"{self.client.name}_{symbol}_{interval}.csv"
 
     def _is_fresh(self, df: pd.DataFrame, interval: str) -> bool:
         if df.empty:
@@ -73,12 +74,12 @@ class DataCache:
             cached_df = self._load_from_disk(symbol, interval)
 
             if self._is_fresh(cached_df, interval) and len(cached_df) >= limit:
-                print(f"[CACHE HIT] {symbol} {interval} ({len(cached_df)} candles)")
+                print(f"[CACHE HIT] {self.client.name} {symbol} {interval} ({len(cached_df)} candles)")
                 return cached_df.tail(limit)
 
-            print(f"[CACHE STALE] {symbol} {interval} — re-downloading")
+            print(f"[CACHE STALE] {self.client.name} {symbol} {interval} — re-downloading")
         else:
-            print(f"[CACHE MISS] {symbol} {interval} — downloading")
+            print(f"[CACHE MISS] {self.client.name} {symbol} {interval} — downloading")
 
         # Download fresh data
         df = self.client.get_klines(symbol, interval, limit)

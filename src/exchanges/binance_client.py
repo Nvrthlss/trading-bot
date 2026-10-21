@@ -4,11 +4,17 @@ Binance API client for fetching OHLCV market data.
 import requests
 import pandas as pd
 
-class BinanceClient:
+from src.exchanges.base import ExchangeClient
+
+class BinanceClient(ExchangeClient):
     """Client for the Binance public API (no auth needed for market data)."""
     def __init__(self):
         self.base_url = "https://api.binance.com"
         self.session = requests.Session()
+
+    @property
+    def name(self) -> str:
+        return "binance"
 
     def get_klines(self, symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
         all_data = []
