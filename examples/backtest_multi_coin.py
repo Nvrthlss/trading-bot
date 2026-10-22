@@ -1,7 +1,7 @@
 from src.exchanges.binance_client import BinanceClient
 from src.data.cache import DataCache
 from src.strategies.ml_strategy import MLStrategy
-from src.backtest.multi_coin_engine import MultiCoinBacktestEngine
+from src.backtest.multi_asset_engine import MultiAssetBacktestEngine
 
 
 client = BinanceClient()
@@ -36,7 +36,7 @@ for sym in SYMBOLS:
     strategies[sym] = strat
     print(f"  [READY] {sym}")
 
-engine = MultiCoinBacktestEngine(
+engine = MultiAssetBacktestEngine(
     initial_balance=10_000.0,
     trade_size_pct=5.0,
     fee_rate=0.001,
@@ -45,11 +45,11 @@ engine = MultiCoinBacktestEngine(
     max_total_exposure_pct=60.0,
 )
 
-print("\nRunning multi-coin backtest...")
+print("\nRunning multi-asset backtest...")
 result = engine.run(trade_data, strategies)
 
 print("\n" + "=" * 60)
-print("MULTI-COIN BACKTEST RESULTS")
+print("MULTI-ASSET BACKTEST RESULTS")
 print("=" * 60)
 print(f"Symbols:           {', '.join(SYMBOLS)}")
 print(f"Trade TF:          {TRADE_TF}")

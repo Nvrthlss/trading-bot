@@ -1,5 +1,5 @@
 """
-Multi-coin backtest engine
+Multi-asset backtest engine
 Runs multiple strategies on multiple symbols simultaneously,
 sharing a common balance with portfolio-level exposure limits
 Mirrors the PaperTrader logic for historical data
@@ -14,7 +14,7 @@ from src.risk.manager import RiskManager, EXIT_SIGNAL
 
 
 @dataclass
-class MultiCoinTrade:
+class MultiAssetTrade:
     symbol: str
     entry_time: pd.Timestamp
     entry_price: float
@@ -27,7 +27,7 @@ class MultiCoinTrade:
 
 
 @dataclass
-class MultiCoinResult:
+class MultiAssetResult:
     initial_balance: float
     final_balance: float
     total_return_pct: float
@@ -37,12 +37,12 @@ class MultiCoinResult:
     win_rate: float
     total_fees: float
     exit_reasons: dict = field(default_factory=dict)
-    trades: List[MultiCoinTrade] = field(default_factory=list)
+    trades: List[MultiAssetTrade] = field(default_factory=list)
     equity_curve: pd.Series = None
     per_symbol_stats: Dict[str, dict] = field(default_factory=dict)
 
 
-class MultiCoinBacktestEngine:
+class MultiAssetBacktestEngine:
     def __init__(
         self,
         initial_balance: float = 10_000.0,
@@ -63,7 +63,7 @@ class MultiCoinBacktestEngine:
         self,
         data: Dict[str, pd.DataFrame],
         strategies: Dict[str, object],
-    ) -> MultiCoinResult:
+    ) -> MultiAssetResult:
         prepared_data = {}
         for sym, df in data.items():
             prepared_data[sym] = strategies[sym].prepare(df)
@@ -80,7 +80,7 @@ class MultiCoinBacktestEngine:
             for sym in data.keys()
         }
         total_fees = 0.0
-        trades: List[MultiCoinTrade] = []
+        trades: List[MultiAssetTrade] = []
         exit_reasons: List[str] = []
         equity_curve = []
 
@@ -120,7 +120,7 @@ class MultiCoinBacktestEngine:
                     pnl = net - entry_cost
                     return_pct = (pnl / entry_cost) * 100
 
-                    trades.append(MultiCoinTrade(
+                    trades.append(MultiAssetTrade(
                         symbol=sym,
                         entry_time=pos["entry_time"],
                         entry_price=pos["entry_price"],
@@ -195,7 +195,7 @@ class MultiCoinBacktestEngine:
             pnl = net - entry_cost
             return_pct = (pnl / entry_cost) * 100
 
-            trades.append(MultiCoinTrade(
+            trades.append(MultiAssetTrade(
                 symbol=sym,
                 entry_time=pos["entry_time"],
                 entry_price=pos["entry_price"],
@@ -229,7 +229,7 @@ class MultiCoinBacktestEngine:
                 "total_pnl": sum(t.pnl for t in sym_trades),
             }
 
-        return MultiCoinResult(
+        return MultiAssetResult(
             initial_balance=self.initial_balance,
             final_balance=final_balance,
             total_return_pct=total_return_pct,
